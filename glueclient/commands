@@ -1,0 +1,16 @@
+aws lambda create-function --function-name glueclient \
+--runtime python2.7 \
+--zip-file fileb://glueclient.zip \
+--timeout 60 \
+--memory-size 256 \
+--role arn:aws:iam::XXXXXXXX:role/etlrunner-lambda-role \
+--description "Calls glue job" \
+--handler main.main_handler
+
+aws lambda update-function-code \
+    --function-name glueclient \
+    --zip-file fileb://glueclient.zip
+
+aws lambda update-function-configuration \
+                 --handler main.main_handler \
+                 --function-name etlrunner

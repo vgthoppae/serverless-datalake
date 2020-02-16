@@ -1,0 +1,110 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Creates Glue Developement Endpoint
+
+Parameters:
+  s3apiGatewayStageName:
+    Type: "String"
+    AllowedPattern: "^[a-z0-9]+$"
+    Default: "dev"
+
+  s3apiGatewayExecRoleName:
+    Type: "String"
+    Default: "s3ApiGateWayExecutionRole"
+
+  s3apiGatewaySwaggerBucketName:
+    Type: String
+    Description: Bucket where S3 API Swagger file is stored
+
+  s3ApiGatewaySwaggerFileName:
+    Type: String
+    Description: Swagger File Name (Key name) that is stored in the bucket above
+
+Resources:
+  vpcDevEndpoint:
+    Type: AWS::Glue::DevEndpoint
+    Properties:
+      EndpointName: dev-ep-vpc
+      NumberOfNodes: 2
+      PublicKey: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCiGMfZr8v0jU54wa9eWbzoXWgIWwJBxWfTE/q0e6hXLL5O7dpfnBmQzV05X3RK4oFWcHTu1lC8Zu1Gyx6NdNe3+Hus1Qb9gyYS/kY0mAGfbO6s4r0V/UsthudCEQx65FRXsuoLCuaX/LRrmp7e1gr8o4m6Sshiq90uQi4SM2HIZTnPwfxjtB3fu23p/Y2jP8qQ6T1DsZGjF0hW/5Ih3YqlHRih/4HfnggBIYA8fSMgJLYqxAzIGdZHu2E/lSsOq2z8TRd+khwveVb5OTpD3bXJWU1XpKuGhEaIcFkvUN1BA70N8313xIucML+rj3IDYJDSAveQhwyIEVs/TsRqkuLf vgthoppae@Vs-MacBook-Pro"
+      RoleArn: "arn:aws:iam::210886440596:role/DefaultGlueServiceRole"
+      SecurityGroupIds:
+        - sg-0dfd151aef7d19438
+      SubnetId: subnet-09244952
+
+  vpcDevEndpoint1:
+    Type: AWS::IAM::DevEndpoint
+    Properties:
+
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "apigateway.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+      RoleName: !Ref s3apiGatewayExecRoleName
+
+  s3ApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      ApiKeySourceType: HEADER
+      Body:
+        'Fn::Transform':
+          Name: 'AWS::Include'
+          Parameters:
+            Location: !Sub "s3://${s3apiGatewaySwaggerBucketName}/${s3ApiGatewaySwaggerFileName}"
+      FailOnWarnings: True
+      MinimumCompressionSize: 0
+      Name: S3API
+
+  s3ApiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn: s3ApiGateway
+    Properties:
+      Description: S3 API Deployment
+      RestApiId: !Ref s3ApiGateway
+      StageName: !Ref s3apiGatewayStageName
+
+  s3ApiGatewayApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    DependsOn: s3ApiGatewayDeployment
+    Properties:
+      Description: A basic key for restricting access to the S3 API
+      Name: basicKeyForS3API
+      Enabled: True
+
+  s3ApiGatewayUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    DependsOn: s3ApiGatewayApiKey
+    Properties:
+      Description: A basic usage plan for S3 API
+      UsagePlanName: basicPlanForS3API
+      ApiStages:
+        - ApiId: !Ref s3ApiGateway
+          Stage: !Ref s3apiGatewayStageName
+      Quota:
+        Limit: 1000
+        Period: DAY
+      Throttle:
+        BurstLimit: 20
+        RateLimit: 5
+
+  s3ApiGatewayUsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    DependsOn: s3ApiGatewayUsagePlan
+    Properties:
+      KeyId: !Ref s3ApiGatewayApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref s3ApiGatewayUsagePlan
+
+Outputs:
+  s3apiGatewayInvokeURL:
+    Description: Invoke URL of the S3 API
+    Value: !Sub "https://${s3ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${s3apiGatewayStageName}"
+

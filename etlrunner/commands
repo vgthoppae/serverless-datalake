@@ -1,0 +1,54 @@
+aws lambda create-function --function-name etlrunner \
+--runtime java8 \
+--zip-file fileb://./target/etlrunner-1.0-SNAPSHOT.jar \
+--timeout 60 \
+--memory-size 256 \
+--role arn:aws:iam::xxxxxx:role/etlrunner-lambda-role \
+--description "Polls SQS for messages and invokes glue" \
+--handler com.bb.aws.etl.EtlRunner
+
+aws lambda invoke --function-name etlrunner --payload ""
+
+aws lambda update-function-code --function-name etlrunner --zip-file fileb://./target/etlrunner-1.0-SNAPSHOT.jar
+
+aws s3 cp dummy.txt s3://vg-simple-datalake/external/dummy.txt
+
+aws lambda update-function-code \
+--function-name etlrunner \
+--zip-file fileb://./target/etlrunner-1.0-SNAPSHOT.jar
+
+aws lambda update-function-configuration \
+                 --handler com.bb.aws.etl.RedS3Poller \
+                 --function-name etlrunner
+
+aws lambda update-function-configuration \
+                 --function-name etlrunner \
+                 --timeout 60 \
+                 --memory-size 256
+                 --runtime java8
+
+
+aws emr create-cluster --applications Name=Hive Name=HBase Name=Hue Name=Hadoop Name=ZooKeeper \
+  --tags Name="EMR-Atlas" \
+  --release-label emr-5.16.0 \
+  --ec2-attributes SubnetId=<subnet-xxxxx>,KeyName=<Key Name> \
+--use-default-roles \
+--ebs-root-volume-size 100 \
+  --instance-groups 'InstanceGroupType=MASTER, InstanceCount=1, InstanceType=m4.xlarge, InstanceGroupType=CORE, InstanceCount=1, InstanceType=m4.xlarge \
+  --log-uri ‘<S3 location for logging>’ \
+--steps Name='Run Remote Script',Jar=command-runner.jar,Args=[bash,-c,'curl https://s3.amazonaws.com/aws-bigdata-blog/artifacts/aws-blog-emr-atlas/apache-atlas-emr.sh -o /tmp/script.sh; chmod +x /tmp/script.sh; /tmp/script.sh']
+
+https://s3.amazonaws.com/aws-bigdata-blog/artifacts/aws-blog-emr-atlas/emr-atlas.template
+
+s3://vg-simple-datalake/emr-atlas-log
+
+ssh -L 21000:ec2-34-235-121-193.compute-1.amazonaws.com:21000 -i xxxx-ami-key.pem hadoop@ec2-34-235-121-193.compute-1.amazonaws.com
+ssh -L 8888:ec2-34-235-121-193.compute-1.amazonaws.com:8888 -i xxxx-ami-key.pem hadoop@ec2-34-235-121-193.compute-1.amazonaws.com
+
+aws cloudformation create-stack --stack-name emr-atlas \
+--template-body file://emr-atlas-cloudformation.template \
+--capabilities CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM \
+--parameters ParameterKey=KeyName,ParameterValue=xxx-ami-key \
+ParameterKey=EMRLogDir,ParameterValue=s3://vg-simple-datalake/emr-atlas-log \
+ParameterKey=VPC,ParameterValue=vpc-xxx \
+ParameterKey=Subnet,ParameterValue=subnet-xx

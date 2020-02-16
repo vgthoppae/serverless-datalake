@@ -1,0 +1,29 @@
+INSERT INTO public.customer
+(store_id, first_name, last_name, email, address_id, activebool, create_date, last_update, active)
+VALUES(2, 'Ray', 'Jr.', 'smalone@nowhere.com', 87, true, 'now'::text::date, now(), 0); --601
+
+select distinct address_id from address;
+
+--currval('customer_customer_id_seq'::regclass)
+
+select max(customer_id) from customer;
+
+select *
+from rental
+where customer_id = 4;
+
+INSERT INTO public.rental
+(rental_date, inventory_id, customer_id, return_date, staff_id, last_update)
+VALUES(now(), 1075, currval('customer_customer_id_seq'), now() + interval '4' day, 2, now()); --16051
+
+select max(rental_id)
+from rental
+where customer_id = 4;
+
+select *
+from payment
+where customer_id = 4;
+
+INSERT INTO public.payment
+(customer_id, staff_id, rental_id, amount, payment_date)
+VALUES(currval('customer_customer_id_seq'), 2, currval('rental_rental_id_seq'), 5.99, now());

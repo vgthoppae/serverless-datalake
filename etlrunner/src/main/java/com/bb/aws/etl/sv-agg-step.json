@@ -1,0 +1,73 @@
+{
+  "StartAt": "Generate Patient Finder File",
+  "States": {
+    "Generate Patient Finder File": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::glue:startJobRun.sync",
+      "Parameters": {
+        "JobName": "patient-finder"
+      },
+      "Next": "Receive External files in parallel"
+    },
+    "Receive External files in parallel": {
+      "Type": "Parallel",
+      "Branches": [
+        {
+          "StartAt": "Receive IDR Extract",
+          "States": {
+            "Receive IDR Extract": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:us-east-1:xxxxx:activity:ReceiveIDRExtractActivity",
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Receive MDS Extract",
+          "States": {
+            "Receive MDS Extract": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:us-east-1:xxxxx:activity:ReceiveMDSExtractActivity",
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Receive ECE Extract",
+          "States": {
+            "Receive ECE Extract": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:us-east-1:xxxxx:activity:ReceiveECEExtractActivity",
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Receive FPVS Extract",
+          "States": {
+            "Receive FPVS Extract": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:us-east-1:xxxxx:activity:ReceiveFPVSExtractActivity",
+              "End": true
+            }
+          }
+        }
+      ],
+      "Next": "Merge and Prepare"
+    },
+    "Merge and Prepare": {
+      "Type": "Pass",
+      "Result": {
+        "GlueJobName": "Merge_and_Prepare"
+      },
+      "Next": "Run DADI Workflow"
+    },
+    "Run DADI Workflow": {
+      "Type": "Pass",
+      "Result": {
+        "GlueJobName": "DADI"
+      },
+      "End": true
+    }
+  }
+}

@@ -1,0 +1,96 @@
+---
+Description: CloudFormation template for creating an EMR cluster
+Outputs:
+  IPAddress:
+    Description: IP address of EMR cluster MasterNode
+    Value:
+      Fn::GetAtt:
+      - EMRCluster
+      - MasterPublicDNS
+Parameters:
+  MasterInstanceCount:
+    Default: '1'
+    Description: Number of master instances
+    Type: Number
+  MasterInstanceType:
+    Default: m3.xlarge
+    Description: Instance Type of the master node
+    Type: String
+  CoreInstanceCount:
+    Default: '1'
+    Description: Number of core instances
+    Type: Number
+  CoreInstanceType:
+    Default: m3.xlarge
+    Description: Instance Type of the core node
+    Type: String
+  EMRClusterName:
+    Default: EMR Atlas Cluster
+    Description: Cluster name for the EMR
+    Type: String
+  EMRLogDir:
+    Description: Log Dir for the EMR cluster
+    Type: String
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH to the instances
+    Type: AWS::EC2::KeyPair::KeyName
+  Subnet:
+    Description: Subnet ID for creating the EMR cluster
+    Type: AWS::EC2::Subnet::Id
+  VPC:
+    Description: VPC ID for creating the EMR cluster
+    Type: AWS::EC2::VPC::Id
+  emrReleaseLabel:
+    Default: emr-5.16.0
+    Description: Release label for the EMR cluster
+    Type: String
+Resources:
+  EMRCluster:
+    Type: AWS::EMR::Cluster
+    Properties:
+      Applications:
+        - Name: Hive
+        - Name: HBase
+        - Name: Hue
+        - Name: Hadoop
+        - Name: ZooKeeper
+      Configurations:
+        - Classification: hive-site
+          ConfigurationProperties:
+            hive.metastore.client.factory.class: com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory
+      Instances:
+        MasterInstanceGroup:
+          InstanceCount: !Ref MasterInstanceCount
+          InstanceType: !Ref MasterInstanceType
+          Market: ON_DEMAND
+          Name: Master
+        Ec2KeyName: !Ref KeyName
+        Ec2SubnetId: !Ref Subnet
+        CoreInstanceGroup:
+          InstanceCount: !Ref CoreInstanceCount
+          InstanceType: !Ref CoreInstanceType
+          Market: ON_DEMAND
+          Name: Core
+        TerminationProtected: false
+      Name: AtlasEMRCluster
+      JobFlowRole: EMR_EC2_DefaultRole
+      LogUri: !Ref EMRLogDir
+      ServiceRole: EMR_DefaultRole
+      ReleaseLabel: !Ref emrReleaseLabel
+      Tags:
+      - Key: Name
+        Value: EMR Atlas Cluster
+      VisibleToAllUsers: True
+  AtlasStep:
+    Properties:
+      ActionOnFailure: CONTINUE
+      JobFlowId: !Ref EMRCluster
+      HadoopJarStep:
+        Args:
+        - bash
+        - "-c"
+        - curl https://s3.amazonaws.com/apache-atlas-setup-on-emr/apache-atlas-emr.sh
+          -o /tmp/script.sh; chmod +x /tmp/script.sh; /tmp/script.sh
+        Jar: command-runner.jar
+      Name: AtlasStep
+    Type: AWS::EMR::Step

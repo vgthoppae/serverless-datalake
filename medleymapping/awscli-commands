@@ -1,0 +1,39 @@
+aws glue create-dev-endpoint \
+   --endpoint-name dev-ep-vpc \
+   --role-arn arn:aws:iam::210886440596:role/DefaultGlueServiceRole \
+   --security-group-ids sg-0dfd151aef7d19438 \
+   --subnet-id subnet-09244952 \
+   --number-of-nodes 2 \
+   --public-keys ""
+
+aws glue create-dev-endpoint \
+   --endpoint-name dev-ep \
+   --role-arn arn:aws:iam::210886440596:role/DefaultGlueServiceRole \
+   --number-of-nodes 2 \
+   --public-keys ""
+
+
+aws glue  get-dev-endpoint \
+    --endpoint-name dev-ep-vpc
+
+aws ec2 describe-network-interfaces \
+    --filters Name=private-dns-name,Values=ip-172-31-28-57.ec2.internal
+
+aws ec2 allocate-address
+
+aws ec2 associate-address \
+    --allocation-id eipalloc-09ab6909a40c847ba \
+    --network-interface-id eni-0ff29e67dab0ec051
+
+ssh -i ~/.ssh/id_rsa -nNT -g -R :9001:localhost:9001 glue@ec2-100-26-153-169.compute-1.amazonaws.com
+ssh -i ~/.ssh/id_rsa -NTL 9007:169.254.76.1:9007 glue@54.159.138.213
+
+ssh -i ~/.ssh/id_rsa \
+    glue@ec2-100-27-46-217.compute-1.amazonaws.com \
+    -t gluepython /home/glue/scripts/dvdrental/dvdrental.py
+
+s3://vg-simple-datalake/dvdrental/olap/green/1/2007-02-14/sample-rental-payment-20070214.csv
+
+ec2-52-87-106-77.compute-1.amazonaws.com
+
+aws cloudformation create-stack --stack-name emr-atlas --template-body file://emr-atlas-cloudformation.template --parameters ParamaterKey=EMRLogDir,ParameterValue=s3://vg-simple-datalake/emr-log/ ParamaterKey=KeyName,ParameterValue=sbabswebserver-ami-key ParamaterKey=Subnet,ParameterValue=subnet-09244952 ParamaterKey=VPC,ParameterValue=vpc-88fd4dee

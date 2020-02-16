@@ -1,0 +1,15 @@
+s3://vg-simple-datalake/dvdrental/green/store_id=1/rental_dt=2007-02-14/sample-rental-payment-20070214.csv
+
+CREATE EXTERNAL TABLE rentalpayment (
+	rental_id int,
+	payment_date timestamp,
+	amount decimal(10,2))
+PARTITIONED BY (store_id int, rental_dt string)
+ROW FORMAT DELIMITED
+  FIELDS TERMINATED BY ','
+  ESCAPED BY '\\'
+  LINES TERMINATED BY '\n'
+LOCATION 's3://vgsimpledatalake/dvdrental/green/'
+TBLPROPERTIES ("skip.header.line.count"="1");
+
+ALTER TABLE rental_payment SET TBLPROPERTIES ("skip.header.line.count"="1");
